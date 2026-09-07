@@ -1,4 +1,4 @@
-### Chris Titus Tech's PowerShell profile
+### 7xmohamed's PowerShell profile
 
 function Enable-Tls12 {
     try {
@@ -42,20 +42,6 @@ function Test-Command {
     $null -ne (Get-Command -Name $Name -ErrorAction SilentlyContinue)
 }
 
-function Save-UriToFile {
-    param(
-        [Parameter(Mandatory)][string]$Uri,
-        [Parameter(Mandatory)][string]$OutFile
-    )
-
-    $client = New-Object System.Net.WebClient
-    try {
-        $client.DownloadFile($Uri, $OutFile)
-    } finally {
-        $client.Dispose()
-    }
-}
-
 function Get-UriContent {
     param([Parameter(Mandatory)][string]$Uri)
 
@@ -68,127 +54,8 @@ function Get-UriContent {
 }
 
 $isInteractiveShell = Test-InteractiveShell
-$debug = if ($null -ne $debug_Override) { [bool]$debug_Override } else { $false }
-$repo_root = if ($repo_root_Override) { $repo_root_Override } else { 'https://raw.githubusercontent.com/ChrisTitusTech' }
 $profileDir = Get-ProfileDir
-$timeFilePath = if ($timeFilePath_Override) { $timeFilePath_Override } else { Join-Path $profileDir 'LastExecutionTime.txt' }
-$updateInterval = if ($null -ne $updateInterval_Override) { [int]$updateInterval_Override } else { 7 }
 $showHelpOnLaunch = if ($null -ne $show_help_Override) { [bool]$show_help_Override } else { $false }
-
-function Debug-Message {
-    if (Get-Command -Name 'Debug-Message_Override' -ErrorAction SilentlyContinue) {
-        Debug-Message_Override
-        return
-    }
-
-    Write-Host '#######################################' -ForegroundColor Red
-    Write-Host '#           Debug mode enabled        #' -ForegroundColor Red
-    Write-Host '#          ONLY FOR DEVELOPMENT       #' -ForegroundColor Red
-    Write-Host '#       Run Update-Profile to reset   #' -ForegroundColor Red
-    Write-Host '#######################################' -ForegroundColor Red
-}
-
-if ($debug) {
-    Debug-Message
-}
-
-function Test-ProfileUpdateDue {
-    param(
-        [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][int]$IntervalDays
-    )
-
-    if ($IntervalDays -lt 0 -or -not (Test-Path -Path $Path -PathType Leaf)) {
-        return $true
-    }
-
-    $rawDate = (Get-Content -Path $Path -Raw -ErrorAction SilentlyContinue).Trim()
-    if ([string]::IsNullOrWhiteSpace($rawDate)) {
-        return $true
-    }
-
-    $lastRun = [datetime]::MinValue
-    if (-not [datetime]::TryParseExact(
-            $rawDate,
-            'yyyy-MM-dd',
-            [Globalization.CultureInfo]::InvariantCulture,
-            [Globalization.DateTimeStyles]::None,
-            [ref]$lastRun
-        )) {
-        return $true
-    }
-
-    return ((Get-Date).Date - $lastRun.Date).TotalDays -ge $IntervalDays
-}
-
-function Test-ProfileIsSymlink {
-    $profileItem = Get-Item -LiteralPath $PROFILE.CurrentUserCurrentHost -Force -ErrorAction SilentlyContinue
-    return $profileItem -and $profileItem.LinkType -eq 'SymbolicLink'
-}
-
-function Update-Profile {
-    [CmdletBinding(SupportsShouldProcess)]
-    [OutputType([bool])]
-    param([switch]$Force)
-
-    if (Get-Command -Name 'Update-Profile_Override' -ErrorAction SilentlyContinue) {
-        Update-Profile_Override @PSBoundParameters
-        return $true
-    }
-
-    $url = "$repo_root/powershell-profile/main/Microsoft.PowerShell_profile.ps1"
-    $target = $PROFILE.CurrentUserCurrentHost
-    $tempFile = Join-Path $env:TEMP 'Microsoft.PowerShell_profile.ps1'
-
-    try {
-        Save-UriToFile -Uri $url -OutFile $tempFile
-
-        $targetExists = Test-Path -Path $target -PathType Leaf
-        $oldHash = if ($targetExists) { (Get-FileHash -Path $target).Hash } else { $null }
-        $newHash = (Get-FileHash -Path $tempFile).Hash
-
-        if (-not $Force -and $targetExists -and $oldHash -eq $newHash) {
-            if ($isInteractiveShell) {
-                Write-Host 'Profile is up to date.' -ForegroundColor Green
-            }
-            return $true
-        }
-
-        if ($PSCmdlet.ShouldProcess($target, 'Update PowerShell profile')) {
-            $targetDir = Split-Path -Path $target -Parent
-            if (-not (Test-Path -Path $targetDir)) {
-                New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
-            }
-
-            Copy-Item -Path $tempFile -Destination $target -Force
-            Write-Host 'Profile has been updated. Restart your shell to use the new version.' -ForegroundColor Magenta
-        }
-
-        return $true
-    } catch {
-        Write-Warning "Unable to check for profile updates: $_"
-        return $false
-    } finally {
-        Remove-Item -Path $tempFile -ErrorAction SilentlyContinue
-    }
-}
-
-function Invoke-ScheduledProfileUpdate {
-    if ($debug -or
-        -not $isInteractiveShell -or
-        (Test-ProfileIsSymlink) -or
-        -not (Test-ProfileUpdateDue -Path $timeFilePath -IntervalDays $updateInterval)) {
-        return
-    }
-
-    if (Update-Profile) {
-        $timeDir = Split-Path -Path $timeFilePath -Parent
-        if (-not (Test-Path -Path $timeDir)) {
-            New-Item -Path $timeDir -ItemType Directory -Force | Out-Null
-        }
-        Get-Date -Format 'yyyy-MM-dd' | Set-Content -Path $timeFilePath
-    }
-}
 
 function Update-PowerShell {
     [CmdletBinding(SupportsShouldProcess)]
@@ -277,13 +144,21 @@ function Resolve-Editor {
         return $EDITOR_Override
     }
 
-    foreach ($candidate in 'nvim', 'pvim', 'vim', 'vi', 'code', 'codium', 'notepad++', 'sublime_text') {
+    foreach ($candidate in 'nvim', 'vim', 'zed', 'code', 'notepad++') {
         if (Test-Command $candidate) {
             return $candidate
         }
     }
 
     return 'notepad'
+}
+
+$legacyModulePath = "$HOME\Documents\WindowsPowerShell\Modules"
+
+if (Test-Path $legacyModulePath) {
+    if ($env:PSModulePath -notlike "*$legacyModulePath*") {
+        $env:PSModulePath += [IO.Path]::PathSeparator + $legacyModulePath
+    }
 }
 
 Initialize-OptionalModule
@@ -338,50 +213,6 @@ function ff {
 
 function pubip {
     (Get-UriContent -Uri 'https://ifconfig.me/ip').Trim()
-}
-
-function winutil {
-    & ([ScriptBlock]::Create((Invoke-RestMethod -Uri 'https://christitus.com/win'))) @args
-}
-
-function winutildev {
-    if (Get-Command -Name 'WinUtilDev_Override' -ErrorAction SilentlyContinue) {
-        WinUtilDev_Override @args
-        return
-    }
-
-    & ([ScriptBlock]::Create((Invoke-RestMethod -Uri 'https://christitus.com/windev'))) @args
-}
-
-function windev {
-    $winutilRepo = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'github\winutil'
-    $compileScript = Join-Path $winutilRepo 'Compile.ps1'
-    $compiledScript = Join-Path $winutilRepo 'winutil.ps1'
-
-    if (-not (Test-Path -LiteralPath $compileScript -PathType Leaf)) {
-        throw "WinUtil's Compile.ps1 was not found at '$compileScript'."
-    }
-
-    Push-Location -LiteralPath $winutilRepo
-    try {
-        & $compileScript
-        if (-not $?) {
-            throw 'WinUtil compilation failed.'
-        }
-    } finally {
-        Pop-Location
-    }
-
-    if (-not (Test-Path -LiteralPath $compiledScript -PathType Leaf)) {
-        throw "WinUtil compilation did not create '$compiledScript'."
-    }
-
-    $shell = if (Test-Command pwsh) { 'pwsh.exe' } else { 'powershell.exe' }
-    Start-Process -FilePath $shell -WorkingDirectory $winutilRepo -ArgumentList @(
-        '-NoProfile',
-        '-ExecutionPolicy', 'Bypass',
-        '-File', $compiledScript
-    )
 }
 
 function admin {
@@ -739,7 +570,6 @@ PowerShell Profile Help
 Profile:
   Edit-Profile      Open the current user's all-hosts profile for editing.
   Invoke-Profile    Reload this profile in the current session.
-  Update-Profile    Check for profile updates.
   Update-PowerShell Check for the latest PowerShell release and update with winget.
 
 Git:
@@ -748,7 +578,7 @@ Git:
   gc <message>      git commit -m <message>
   gcl <repo>        git clone <repo>
   gcom <message>    git add .; git commit -m <message>
-  gp/gpush          git push
+  gpush             git push
   gpull             git pull
   gs                git status
   lazyg <message>   git add .; git commit -m <message>; git push
@@ -772,18 +602,14 @@ Shortcuts:
   unzip <file>      Extract a zip file here.
   uptime            Show system uptime.
   which <name>      Show command path.
-  windev            Compile and run the local WinUtil checkout.
-  winutil           Run the latest WinUtil release script.
-  winutildev        Run the latest WinUtil prerelease script.
 '@ | Write-Host
 }
 
-Set-Alias -Name gp -Value gpush -Force
+# Set-Alias -Name gp -Value gpush -Force
 
 Initialize-PSReadLine
 Register-CustomCompletion
 Initialize-PromptTool
-Invoke-ScheduledProfileUpdate
 
 if ($showHelpOnLaunch) {
     Show-Help
