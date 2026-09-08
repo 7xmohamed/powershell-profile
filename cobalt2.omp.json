@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "version": 4,
+  "final_space": true,
+  "blocks": [
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "segments": [
+        {
+          "type": "path",
+          "style": "diamond",
+          "leading_diamond": "\ue0b6",
+          "trailing_diamond": "\ue0b4",
+          "background": "#24283b",
+          "foreground": "#7aa2f7",
+          "options": {
+            "style": "full"
+          },
+          "template": "  {{ .Path }} "
+        },
+        {
+          "type": "git",
+          "style": "diamond",
+          "leading_diamond": " \ue0b6",
+          "trailing_diamond": "\ue0b4",
+          "background": "#2f3549",
+          "foreground": "#c0caf5",
+          "background_templates": [
+            "{{ if or (.Working.Changed) (.Staging.Changed) }}#3b4261{{ end }}"
+          ],
+          "options": {
+            "branch_icon": "",
+            "fetch_status": true,
+            "status_formats": {
+              "modified": "!%d",
+              "untracked": "?%d",
+              "added": "+%d",
+              "deleted": "-%d"
+            }
+          },
+          "template": "  {{ .HEAD }}{{ if .Staging.Changed }} <#9ece6a>+{{ .Staging.String }}</>{{ end }}{{ if .Working.Changed }} <#e0af68>{{ .Working.String }}</>{{ end }}{{ if gt .Ahead 0 }} <#bb9af7>⇡{{ .Ahead }}</>{{ end }}{{ if gt .Behind 0 }} <#bb9af7>⇣{{ .Behind }}</>{{ end }} "
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 $profileSourceUri = 'https://github.com/7xmohamed/powershell-profile/raw/main/Microsoft.PowerShell_profile.ps1'
-$themeSourceUri = 'https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/cobalt2.omp.json'
+$themeSourceUri = 'https://raw.githubusercontent.com/7xmohamed/powershell-profile/main/cobalt2.omp.json'
 
 function Enable-Tls12 {
     try {
